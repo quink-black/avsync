@@ -1,0 +1,172 @@
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ==================== macOS ====================
+  release-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ffmpeg sdl2 pkg-config
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DAVSYNC_ENABLE_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
+
+      - name: Package
+        run: |
+          mkdir -p dist/av-auto-sync
+          cp build/bin/avsync      dist/av-auto-sync/ 2>/dev/null || true
+          cp build/bin/avsync_gui  dist/av-auto-sync/ 2>/dev/null || true
+          cp config/default.json   dist/av-auto-sync/
+          cp README.md             dist/av-auto-sync/
+
+          # Bundle dynamic libraries that the binaries link against
+          # (best-effort; users may still need FFmpeg/SDL2 installed)
+          echo "Note: This build dynamically links to FFmpeg and SDL2." > dist/av-auto-sync/DEPENDENCIES.txt
+          echo "Install them via: brew install ffmpeg sdl2" >> dist/av-auto-sync/DEPENDENCIES.txt
+
+          cd dist
+          tar czf ../av-auto-sync-${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz av-auto-sync
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: av-auto-sync-macos-${{ matrix.arch }}
+          path: av-auto-sync-${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz
+
+  # ==================== Windows ====================
+  release-windows:
+    runs-on: windows-latest
+    env:
+      VCPKG_DEFAULT_TRIPLET: x64-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '01f602195983451bc83e72f4214af2cbc495aa94'
+
+      - name: Install dependencies via vcpkg
+        run: vcpkg install "ffmpeg[core,avformat,avcodec,swresample,swscale,avfilter]:x64-windows" "sdl2:x64-windows"
+
+      - name: Configure
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DAVSYNC_ENABLE_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/av-auto-sync
+
+          # Copy executables
+          Copy-Item build/bin/Release/avsync.exe     dist/av-auto-sync/ -ErrorAction SilentlyContinue
+          Copy-Item build/bin/Release/avsync_gui.exe  dist/av-auto-sync/ -ErrorAction SilentlyContinue
+
+          # Copy all dependent DLLs from vcpkg installed directory
+          $vcpkgBin = "${{ github.workspace }}/vcpkg/installed/x64-windows/bin"
+          if (Test-Path $vcpkgBin) {
+            Get-ChildItem "$vcpkgBin/*.dll" | Copy-Item -Destination dist/av-auto-sync/
+          }
+
+          # Copy config and docs
+          Copy-Item config/default.json dist/av-auto-sync/
+          Copy-Item README.md           dist/av-auto-sync/
+
+          Compress-Archive -Path dist/av-auto-sync -DestinationPath "av-auto-sync-${{ github.ref_name }}-windows-x64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: av-auto-sync-windows-x64
+          path: av-auto-sync-${{ github.ref_name }}-windows-x64.zip
+
+  # ==================== Linux (static-ish) ====================
+  release-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config \
+            libavformat-dev libavcodec-dev libavutil-dev \
+            libswresample-dev libswscale-dev libavfilter-dev \
+            libsdl2-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DAVSYNC_ENABLE_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p dist/av-auto-sync
+          cp build/bin/avsync      dist/av-auto-sync/ 2>/dev/null || true
+          cp build/bin/avsync_gui  dist/av-auto-sync/ 2>/dev/null || true
+          cp config/default.json   dist/av-auto-sync/
+          cp README.md             dist/av-auto-sync/
+
+          echo "Note: This build dynamically links to FFmpeg and SDL2." > dist/av-auto-sync/DEPENDENCIES.txt
+          echo "Install them via your package manager." >> dist/av-auto-sync/DEPENDENCIES.txt
+
+          cd dist
+          tar czf ../av-auto-sync-${{ github.ref_name }}-linux-x64.tar.gz av-auto-sync
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: av-auto-sync-linux-x64
+          path: av-auto-sync-${{ github.ref_name }}-linux-x64.tar.gz
+
+  # ==================== Create GitHub Release ====================
+  create-release:
+    needs: [release-macos, release-windows, release-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/av-auto-sync-macos-x86_64/*.tar.gz
+            artifacts/av-auto-sync-macos-arm64/*.tar.gz
+            artifacts/av-auto-sync-windows-x64/*.zip
+            artifacts/av-auto-sync-linux-x64/*.tar.gz

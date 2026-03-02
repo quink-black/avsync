@@ -1,0 +1,28 @@
+{
+    "dispatch_mode": "auto",
+    "forced_detector": "",
+    "cascade_order": ["syncnet", "onset_align"],
+    "confidence_threshold": 0.3,
+    "offset_threshold_ms": 40,
+    "min_global_confidence": 0.45,
+    "segment_window_sec": 10.0,
+    "segment_step_sec": 5.0,
+    "use_global_offset": true,
+    "syncnet": {
+        "model_path": "models/syncnet.onnx",
+        "face_detect_model": "models/face_detect.onnx",
+        "confidence_threshold": 0.8,
+        "face_min_size": 80,
+        "lip_region_ratio": 0.3
+    },
+    "onset_align": {
+        "spectral_flux_threshold": 2.0,
+        "frame_diff_threshold": 30.0,
+        "min_onset_count": 3,
+        "search_range_ms": 1200.0,
+        "resolution_ms": 5.0,
+        "match_tolerance_ms": 50.0,
+        "min_match_ratio": 0.15
+    },
+    "log_level": "info"
+}
