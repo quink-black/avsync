@@ -9,6 +9,7 @@
 #include "aggregator/OffsetAggregator.h"
 #include "corrector/TimestampCorrector.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <limits>
