@@ -655,9 +655,9 @@ void GuiApp::DrawControlPanel() {
     if (input_dirty) {
         ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.45f, 0.35f, 0.10f, 1.0f));
     }
-    if (ImGui::InputDouble("##offset_input", &offset_input_ms_, 0, 0, "%.1f",
-                           ImGuiInputTextFlags_EnterReturnsTrue)) {
-        // User pressed Enter — apply the value
+    ImGui::InputDouble("##offset_input", &offset_input_ms_, 0, 0, "%.1f");
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        // User pressed Enter or left the field — apply the value
         manual_offset_ms_ = offset_input_ms_;
         player_.SetOffsetMs(manual_offset_ms_);
         offset_just_applied_ = true;
