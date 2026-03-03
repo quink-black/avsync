@@ -220,7 +220,7 @@ if(AVSYNC_ENABLE_GUI)
     target_link_libraries(imgui_sdl2 PUBLIC ${SDL2_LIBRARIES})
     target_link_directories(imgui_sdl2 PUBLIC ${SDL2_LIBRARY_DIRS})
 
-    add_executable(avsync_gui
+    add_executable(avsync_gui WIN32
         src/gui/gui_main.cpp
         src/gui/GuiApp.cpp
         src/gui/PlayerCore.cpp
@@ -240,6 +240,14 @@ if(AVSYNC_ENABLE_GUI)
         nfd
         ${SDL2_LIBRARIES}
     )
+
+    # Windows: link SDL2main (provides WinMain entry point that calls SDL_main/main)
+    if(WIN32)
+        # When using vcpkg/find_package, SDL2::SDL2main is available as a target
+        if(TARGET SDL2::SDL2main)
+            target_link_libraries(avsync_gui PRIVATE SDL2::SDL2main)
+        endif()
+    endif()
 
     # macOS: link CoreFoundation for locale detection (I18n.h)
     if(APPLE)
