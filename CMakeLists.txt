@@ -188,7 +188,7 @@ if(AVSYNC_ENABLE_SYNCNET)
     )
     if(ONNXRUNTIME_AVAILABLE)
         target_compile_definitions(avsync_core PUBLIC AVSYNC_HAS_ONNX=1)
-        target_link_libraries(avsync_core PUBLIC onnxruntime)
+        target_link_libraries(avsync_core PUBLIC ${ONNXRUNTIME_LIB})
     endif()
 endif()
 
