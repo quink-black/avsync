@@ -1,6 +1,10 @@
 #include "gui/GuiApp.h"
 #include "gui/I18n.h"
 
+#include <SDL.h>  // Must include SDL.h in the file containing main() —
+                   // on Windows, SDL redefines main -> SDL_main so that
+                   // SDL2main can provide the real WinMain entry point.
+
 #include <cstdio>
 #include <cstring>
 #include <string>
