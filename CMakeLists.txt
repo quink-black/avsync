@@ -246,6 +246,9 @@ if(AVSYNC_ENABLE_GUI)
         # When using vcpkg/find_package, SDL2::SDL2main is available as a target
         if(TARGET SDL2::SDL2main)
             target_link_libraries(avsync_gui PRIVATE SDL2::SDL2main)
+        else()
+            # When using pkg-config, link SDL2main library directly
+            target_link_libraries(avsync_gui PRIVATE SDL2main)
         endif()
     endif()
 
