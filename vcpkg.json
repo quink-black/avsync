@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "av-auto-sync",
+  "version": "0.1.0",
+  "description": "Audio-video synchronization tool with GUI interface",
+  "homepage": "https://github.com/quink/av-auto-sync",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "ffmpeg",
+      "features": ["avcodec", "avformat", "swscale", "swresample", "avfilter"]
+    },
+    "opencv",
+    "sdl2",
+    "nlohmann-json"
+  ],
+  "builtin-baseline": "23dc124705fcac41cf35c33dd9541f5094a9c19f"
+}
