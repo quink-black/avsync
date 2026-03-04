@@ -17,6 +17,11 @@ option(AVSYNC_ENABLE_GUI "Build GUI application (requires SDL2)" ON)
 
 # ---------- Dependencies ----------
 
+# vcpkg manifest mode (preferred)
+if(EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
+    message(STATUS "Using vcpkg manifest mode")
+endif()
+
 # FFmpeg (required)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED
@@ -56,12 +61,9 @@ endif()
 
 # SDL2 (optional, for GUI)
 if(AVSYNC_ENABLE_GUI)
-    # Try to find SDL2 via pkg-config first, then cmake
-    pkg_check_modules(SDL2 sdl2)
-    if(SDL2_FOUND)
-        # Use pkg-config provided libraries
-        set(SDL2_LIBRARIES ${SDL2_LIBRARIES})
-    else()
+    # On Windows, prefer find_package (vcpkg) to get proper SDL2::SDL2main target.
+    # On other platforms, try pkg-config first, then fall back to find_package.
+    if(WIN32)
         find_package(SDL2 QUIET)
         if(SDL2_FOUND)
             set(SDL2_INCLUDE_DIRS ${SDL2_INCLUDE_DIRS})
@@ -69,6 +71,21 @@ if(AVSYNC_ENABLE_GUI)
         else()
             message(WARNING "SDL2 not found, GUI will not be built")
             set(AVSYNC_ENABLE_GUI OFF)
+        endif()
+    else()
+        pkg_check_modules(SDL2 sdl2)
+        if(SDL2_FOUND)
+            # Use pkg-config provided libraries
+            set(SDL2_LIBRARIES ${SDL2_LIBRARIES})
+        else()
+            find_package(SDL2 QUIET)
+            if(SDL2_FOUND)
+                set(SDL2_INCLUDE_DIRS ${SDL2_INCLUDE_DIRS})
+                set(SDL2_LIBRARIES SDL2::SDL2)
+            else()
+                message(WARNING "SDL2 not found, GUI will not be built")
+                set(AVSYNC_ENABLE_GUI OFF)
+            endif()
         endif()
     endif()
 endif()
