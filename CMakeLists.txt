@@ -58,7 +58,10 @@ endif()
 if(AVSYNC_ENABLE_GUI)
     # Try to find SDL2 via pkg-config first, then cmake
     pkg_check_modules(SDL2 sdl2)
-    if(NOT SDL2_FOUND)
+    if(SDL2_FOUND)
+        # Use pkg-config provided libraries
+        set(SDL2_LIBRARIES ${SDL2_LIBRARIES})
+    else()
         find_package(SDL2 QUIET)
         if(SDL2_FOUND)
             set(SDL2_INCLUDE_DIRS ${SDL2_INCLUDE_DIRS})
