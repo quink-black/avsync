@@ -21,3 +21,4 @@ cmake-build-*/
 # Test output (test_samples kept in separate location)
 test_output/
 test_reports/
+tests/scripts/test_samples/

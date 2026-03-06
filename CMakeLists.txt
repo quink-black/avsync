@@ -212,6 +212,18 @@ if(AVSYNC_ENABLE_SYNCNET)
     endif()
 endif()
 
+# ---------- Copy model files to build output directory ----------
+
+file(GLOB MODEL_FILES "${CMAKE_SOURCE_DIR}/models/*.onnx")
+if(MODEL_FILES)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/bin/models)
+    foreach(MODEL_FILE ${MODEL_FILES})
+        get_filename_component(MODEL_NAME ${MODEL_FILE} NAME)
+        configure_file(${MODEL_FILE} ${CMAKE_BINARY_DIR}/bin/models/${MODEL_NAME} COPYONLY)
+    endforeach()
+    message(STATUS "Copied model files to ${CMAKE_BINARY_DIR}/bin/models/")
+endif()
+
 # ---------- CLI executable ----------
 
 add_executable(avsync src/main.cpp)

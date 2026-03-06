@@ -18,8 +18,8 @@ namespace avsync {
 // SyncNet-based detector: uses face detection + lip region motion analysis
 // to detect audio-visual synchronization offsets.
 //
-// Implementation approach (simplified, no ONNX model dependency):
-// 1. Detect faces in video frames using OpenCV's DNN or Haar cascade
+// Implementation approach:
+// 1. Detect faces in video frames using OpenCV's YuNet DNN model
 // 2. Extract lip/lower-face region
 // 3. Compute lip motion signal (frame-to-frame differences in lip region)
 // 4. Extract speech energy envelope from audio
@@ -77,8 +77,8 @@ public:
 
 private:
     SyncNetConfig config_;
-    cv::CascadeClassifier face_cascade_;
-    bool face_cascade_loaded_ = false;
+    cv::Ptr<cv::FaceDetectorYN> face_detector_;
+    bool face_detector_loaded_ = false;
 };
 
 }  // namespace avsync
