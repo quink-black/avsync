@@ -30,7 +30,7 @@ struct OnsetAlignConfig {
 // Configuration for SyncNet detector
 struct SyncNetConfig {
     std::string model_path = "models/syncnet.onnx";
-    std::string face_detect_model = "models/face_detect.onnx";
+    std::string face_detect_model = "models/face_detection_yunet_2023mar.onnx";
     double confidence_threshold = 0.8;  // SyncNet requires higher confidence
     int face_min_size = 80;             // minimum face region size in pixels
     double lip_region_ratio = 0.3;      // lower-face ratio for lip region extraction

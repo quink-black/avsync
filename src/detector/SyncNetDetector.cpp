@@ -6,40 +6,46 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <numeric>
 
 namespace avsync {
 
 SyncNetDetector::SyncNetDetector(const SyncNetConfig& config)
     : config_(config) {
-    // Try to load Haar cascade for face detection
-    // First try OpenCV's built-in data path, then config path
-    std::vector<std::string> cascade_paths = {
-        config.face_detect_model,
-        "/opt/homebrew/share/opencv4/haarcascades/haarcascade_frontalface_default.xml",
-        "/usr/local/share/opencv4/haarcascades/haarcascade_frontalface_default.xml",
-        "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml",
-    };
+    // Load YuNet DNN face detection model.
+    // The model file should be bundled in the project under models/.
+    const std::string& model_path = config.face_detect_model;
 
-    for (const auto& path : cascade_paths) {
-        if (face_cascade_.load(path)) {
-            face_cascade_loaded_ = true;
-            Log::Info("SyncNetDetector: loaded face cascade from %s", path.c_str());
-            break;
-        }
+    if (!std::filesystem::exists(model_path)) {
+        Log::Warn("SyncNetDetector: face detection model not found at %s", model_path.c_str());
+        return;
     }
 
-    if (!face_cascade_loaded_) {
-        Log::Warn("SyncNetDetector: failed to load face cascade, face detection disabled");
+    try {
+        // Create YuNet face detector with a default input size;
+        // actual size is set per-frame in DetectFaces().
+        face_detector_ = cv::FaceDetectorYN::create(
+            model_path,
+            "",                    // config (not needed for ONNX)
+            cv::Size(320, 320),    // default input size, overridden per-frame
+            0.7f,                  // score threshold
+            0.3f,                  // NMS threshold
+            5000                   // top-K before NMS
+        );
+        face_detector_loaded_ = true;
+        Log::Info("SyncNetDetector: loaded YuNet face detector from %s", model_path.c_str());
+    } catch (const cv::Exception& e) {
+        Log::Warn("SyncNetDetector: failed to load YuNet model: %s", e.what());
     }
 }
 
 bool SyncNetDetector::CanHandle(const ContentFeatures& features) const {
     // SyncNet can handle if:
-    // 1. Face cascade is loaded
+    // 1. Face detector is loaded
     // 2. There's enough audio energy (implies speech)
     // 3. There's some video motion (not a still image)
-    if (!face_cascade_loaded_) return false;
+    if (!face_detector_loaded_) return false;
     if (features.audio_energy < 1e-6) return false;
     if (features.video_motion < 10.0) return false;
     return true;
@@ -49,26 +55,37 @@ std::vector<SyncNetDetector::FaceRect> SyncNetDetector::DetectFaces(
     const std::vector<uint8_t>& frame, int img_width, int img_height
 ) {
     std::vector<FaceRect> results;
-    if (!face_cascade_loaded_) return results;
+    if (!face_detector_loaded_ || !face_detector_) return results;
 
-    // Convert RGB to grayscale using OpenCV
+    // YuNet expects BGR input
     cv::Mat rgb(img_height, img_width, CV_8UC3, const_cast<uint8_t*>(frame.data()));
-    cv::Mat gray;
-    cv::cvtColor(rgb, gray, cv::COLOR_RGB2GRAY);
-    cv::equalizeHist(gray, gray);
+    cv::Mat bgr;
+    cv::cvtColor(rgb, bgr, cv::COLOR_RGB2BGR);
 
-    // Detect faces
-    std::vector<cv::Rect> faces;
-    face_cascade_.detectMultiScale(
-        gray, faces,
-        1.1,   // scale factor
-        3,     // min neighbors
-        0,     // flags
-        cv::Size(config_.face_min_size, config_.face_min_size)
-    );
+    // Update input size to match actual frame dimensions
+    face_detector_->setInputSize(cv::Size(img_width, img_height));
 
-    for (const auto& f : faces) {
-        results.push_back({f.x, f.y, f.width, f.height});
+    // Detect faces: output is a Mat of shape [num_faces, 15]
+    // Columns 0-3: x, y, width, height of bounding box
+    // Column 14: face score
+    cv::Mat faces_mat;
+    face_detector_->detect(bgr, faces_mat);
+
+    if (faces_mat.empty()) return results;
+
+    for (int i = 0; i < faces_mat.rows; ++i) {
+        int w = static_cast<int>(faces_mat.at<float>(i, 2));
+        int h = static_cast<int>(faces_mat.at<float>(i, 3));
+
+        // Filter by minimum face size
+        if (w < config_.face_min_size || h < config_.face_min_size) continue;
+
+        FaceRect rect;
+        rect.x = static_cast<int>(faces_mat.at<float>(i, 0));
+        rect.y = static_cast<int>(faces_mat.at<float>(i, 1));
+        rect.width = w;
+        rect.height = h;
+        results.push_back(rect);
     }
 
     return results;
