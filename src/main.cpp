@@ -5,9 +5,63 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#endif
+
 namespace {
+
+// Get the directory containing the running executable.
+// Returns empty string on failure.
+std::string GetExecutableDir() {
+#ifdef __APPLE__
+    char buf[1024];
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        return std::filesystem::path(buf).parent_path().string();
+    }
+#elif defined(__linux__)
+    char buf[1024];
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (len > 0) {
+        buf[len] = '\0';
+        return std::filesystem::path(buf).parent_path().string();
+    }
+#elif defined(_WIN32)
+    // On Windows, use GetModuleFileName if needed
+#endif
+    return "";
+}
+
+// Resolve a path: if it's relative and doesn't exist at cwd, try resolving
+// against the executable's directory.
+std::string ResolveModelPath(const std::string& path) {
+    namespace fs = std::filesystem;
+    fs::path p(path);
+
+    // Absolute path: use as-is
+    if (p.is_absolute()) return path;
+
+    // Relative path: check cwd first
+    if (fs::exists(p)) return path;
+
+    // Try relative to executable directory
+    std::string exe_dir = GetExecutableDir();
+    if (!exe_dir.empty()) {
+        fs::path resolved = fs::path(exe_dir) / p;
+        if (fs::exists(resolved)) {
+            return resolved.string();
+        }
+    }
+
+    // Return original (will fail at load time with a clear error)
+    return path;
+}
 
 void PrintUsage(const char* program) {
     std::printf("Usage: %s [options] -i <input> -o <output>\n\n", program);
@@ -103,6 +157,9 @@ int main(int argc, char* argv[]) {
             config.manual_offset_ms = file_config.manual_offset_ms;
         }
     }
+
+    // Resolve model paths: try executable directory if relative path not found at cwd
+    config.syncnet.face_detect_model = ResolveModelPath(config.syncnet.face_detect_model);
 
     // Run pipeline
     avsync::SyncPipeline pipeline;
