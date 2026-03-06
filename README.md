@@ -10,7 +10,7 @@ AV Auto-Sync provides both a **CLI pipeline** for batch processing and an **inte
 ## Features
 
 - **Automatic offset detection** via audio/video onset alignment (spectral-flux + frame-diff cross-correlation)
-- **Optional SyncNet detector** (lip-sync neural network, requires ONNX Runtime + OpenCV)
+- **Optional SyncNet detector** (lip-sync neural network, requires OpenCV)
 - **GUI player** with SDL2 + Dear ImGui
   - Real-time A/V preview with adjustable offset (millisecond precision)
   - Variable playback speed (0.1× – 2.0×)
@@ -33,7 +33,7 @@ AV Auto-Sync provides both a **CLI pipeline** for batch processing and an **inte
 | FFmpeg 5+ dev libs | ✅ | `libavformat libavcodec libavutil libswresample libswscale libavfilter` |
 | pkg-config | ✅ | For finding FFmpeg |
 | SDL2 dev | GUI only | Required for `avsync_gui` |
-| OpenCV + ONNX Runtime | Optional | For SyncNet detector |
+| OpenCV | Optional | For SyncNet detector |
 
 ### Install Dependencies
 
@@ -82,7 +82,7 @@ Binaries are placed in `build/bin/`.
 |---|---|---|
 | `AVSYNC_ENABLE_GUI` | `ON` | Build the GUI application (requires SDL2) |
 | `AVSYNC_ENABLE_TESTS` | `ON` | Build unit tests |
-| `AVSYNC_ENABLE_SYNCNET` | `OFF` | Enable SyncNet detector (requires OpenCV + ONNX Runtime) |
+| `AVSYNC_ENABLE_SYNCNET` | `OFF` | Enable SyncNet detector (requires OpenCV) |
 
 Example — CLI only, no GUI:
 

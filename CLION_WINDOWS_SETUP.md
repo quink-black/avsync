@@ -69,8 +69,7 @@ vcpkg install \
     ffmpeg \
     opencv[imgproc,objdetect] \
     sdl2 \
-    nlohmann-json \
-    onnxruntime
+    nlohmann-json
 ```
 
 ### 4. 解决常见问题

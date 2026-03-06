@@ -27,7 +27,7 @@ SyncNetDetector::SyncNetDetector(const SyncNetConfig& config)
         // actual size is set per-frame in DetectFaces().
         face_detector_ = cv::FaceDetectorYN::create(
             model_path,
-            "",                    // config (not needed for ONNX)
+            "",                    // config (not needed for YuNet ONNX model)
             cv::Size(320, 320),    // default input size, overridden per-frame
             0.7f,                  // score threshold
             0.3f,                  // NMS threshold

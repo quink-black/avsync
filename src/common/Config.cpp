@@ -89,9 +89,6 @@ Config LoadConfig(const std::string& path) {
         // SyncNet config
         if (j.contains("syncnet")) {
             auto& sn = j["syncnet"];
-            if (sn.contains("model_path")) {
-                config.syncnet.model_path = sn["model_path"].get<std::string>();
-            }
             if (sn.contains("face_detect_model")) {
                 config.syncnet.face_detect_model = sn["face_detect_model"].get<std::string>();
             }
