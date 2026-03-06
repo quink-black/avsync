@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from typing import Optional, Tuple
+
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
 DEFAULT_TOLERANCE_MS = 40
@@ -125,7 +127,7 @@ def parse_avg_confidence(output: str) -> str:
 
 def evaluate(
     injected_ms: int, detected: str, tolerance: int, threshold: int
-) -> tuple[str, str, str]:
+) -> Tuple[str, str, str]:
     """Evaluate detection result.
 
     Returns (result, error_ms, notes) where result is PASS/FAIL/ERR.
@@ -167,12 +169,25 @@ def evaluate(
 # ── Runner ───────────────────────────────────────────────────────────────────
 
 
-def find_avsync_binary() -> str:
-    """Locate the avsync binary."""
+def find_avsync_binary(explicit_path: Optional[str] = None) -> str:
+    """Locate the avsync binary.
+
+    Resolution order:
+      1. Explicit path from --avsync argument
+      2. AVSYNC environment variable
+      3. Auto-detect in project build directories
+    """
+    if explicit_path:
+        p = Path(explicit_path).resolve()
+        if p.is_file():
+            return str(p)
+        print(f"ERROR: Specified avsync binary not found: {explicit_path}", file=sys.stderr)
+        sys.exit(1)
+
     # Check environment variable
     env_bin = os.environ.get("AVSYNC")
     if env_bin and Path(env_bin).is_file():
-        return env_bin
+        return str(Path(env_bin).resolve())
 
     # Check relative to script location (project build dir)
     script_dir = Path(__file__).resolve().parent
@@ -180,13 +195,15 @@ def find_avsync_binary() -> str:
     candidates = [
         project_dir / "build" / "bin" / "avsync",
         project_dir / "build" / "avsync",
+        project_dir / "cmake-build-debug" / "bin" / "avsync",
+        project_dir / "cmake-build-release" / "bin" / "avsync",
     ]
     for c in candidates:
         if c.is_file():
             return str(c)
 
     print("ERROR: Cannot find avsync binary.", file=sys.stderr)
-    print("  Set AVSYNC environment variable or build the project first.", file=sys.stderr)
+    print("  Use --avsync <path>, set AVSYNC env var, or build the project first.", file=sys.stderr)
     sys.exit(1)
 
 
@@ -276,6 +293,7 @@ Examples:
     parser.add_argument("-i", "--input", required=True, help="Directory containing test sample files")
     parser.add_argument("-o", "--output", default=None, help="Directory for corrected output files")
     parser.add_argument("-r", "--report-dir", default=None, help="Directory for reports")
+    parser.add_argument("--avsync", default=None, help="Path to avsync binary (auto-detected if not set)")
     parser.add_argument("--detectors", nargs="+", default=DEFAULT_DETECTORS, help="Detectors to test")
     parser.add_argument("--tolerance", type=int, default=DEFAULT_TOLERANCE_MS, help="Tolerance in ms")
     parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD_MS, help="Threshold in ms")
@@ -301,7 +319,7 @@ Examples:
     for d in (output_dir, report_dir, detail_dir):
         d.mkdir(parents=True, exist_ok=True)
 
-    avsync_bin = find_avsync_binary()
+    avsync_bin = find_avsync_binary(args.avsync)
     samples = collect_test_samples(input_dir)
 
     # ── Header ────────────────────────────────────────────────────────────
@@ -312,6 +330,7 @@ Examples:
         f" Tolerance: ±{args.tolerance}ms | Threshold: {args.threshold}ms",
         f" Segment: {args.window}s window / {args.step}s step",
         f" Detectors: {', '.join(args.detectors)}",
+        f" Binary: {avsync_bin}",
         f" Input: {input_dir}",
         f" Timeout: {args.timeout}s per sample",
         f" Samples: {len(samples)}",
