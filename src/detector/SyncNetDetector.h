@@ -53,8 +53,7 @@ public:
 
     // Compute lip motion signal: per-frame lip region difference
     std::vector<double> ComputeLipMotion(
-        const VideoSegment& video,
-        const std::vector<FaceRect>& faces
+        const VideoSegment& video
     ) const;
 
     // Compute speech energy envelope from audio
@@ -79,6 +78,21 @@ private:
     SyncNetConfig config_;
     cv::Ptr<cv::FaceDetectorYN> face_detector_;
     bool face_detector_loaded_ = false;
+
+    // Track a face across frames using IoU overlap
+    struct FaceTrack {
+        FaceRect last_rect;
+        int hit_count = 0;      // number of frames this track appeared in
+        int64_t area_sum = 0;   // cumulative face area for averaging
+    };
+
+    // Select the dominant (most frequent + largest) face from per-frame detections
+    FaceRect SelectDominantFace(
+        const std::vector<std::vector<FaceRect>>& per_frame_faces
+    ) const;
+
+    // Compute IoU between two rectangles
+    static double ComputeIoU(const FaceRect& a, const FaceRect& b);
 };
 
 }  // namespace avsync
