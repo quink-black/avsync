@@ -11,7 +11,7 @@
     "syncnet": {
         "face_detect_model": "models/face_detection_yunet_2023mar.onnx",
         "confidence_threshold": 0.8,
-        "face_min_size": 80,
+        "face_min_size": 100,
         "lip_region_ratio": 0.3
     },
     "onset_align": {
